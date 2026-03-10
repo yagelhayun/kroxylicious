@@ -1,0 +1,10 @@
+virtualClusters:
+  - name: dr
+    targetCluster:
+      bootstrapServers: kafka-dr:9092
+
+    gateways:
+      - name: gateway
+        portIdentifiesNode:
+          bootstrapAddress: 0.0.0.0:9292
+          advertisedBrokerAddressPattern: kroxy-dr

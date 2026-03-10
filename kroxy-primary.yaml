@@ -1,0 +1,10 @@
+virtualClusters:
+  - name: primary
+    targetCluster:
+      bootstrapServers: kafka-primary:9092
+
+    gateways:
+      - name: gateway
+        portIdentifiesNode:
+          bootstrapAddress: 0.0.0.0:9192
+          advertisedBrokerAddressPattern: kroxy-primary
