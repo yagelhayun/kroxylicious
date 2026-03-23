@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kroxylicious.fullname" . }}
+  labels:
+    {{- include "kroxylicious.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kroxylicious.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kroxylicious.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Roll pods when the ConfigMap changes (config or ACL rules)
+        checksum/config: {{ include "kroxylicious.config" . | sha256sum }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kroxylicious
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["--config", "/config/config.yaml"]
+          ports:
+            - name: proxy
+              containerPort: {{ .Values.gateway.port }}
+              protocol: TCP
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config/config.yaml
+              subPath: config.yaml
+            {{- if .Values.authorization.enabled }}
+            - name: config
+              mountPath: /config/acl-rules.txt
+              subPath: acl-rules.txt
+            {{- end }}
+            - name: upstream-certs
+              mountPath: /certs/upstream
+              readOnly: true
+            - name: downstream-certs
+              mountPath: /certs/downstream
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "kroxylicious.fullname" . }}-config
+        - name: upstream-certs
+          secret:
+            secretName: {{ .Values.targetCluster.tls.secretName }}
+        - name: downstream-certs
+          secret:
+            secretName: {{ .Values.gateway.tls.secretName }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

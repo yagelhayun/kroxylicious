@@ -1,10 +1,38 @@
+filterDefinitions:
+  - name: acl-authorization
+    type: Authorization
+    config:
+      authorizer: AclAuthorizerService
+      authorizerConfig:
+        aclFile: /config/acl-rules.txt
+
 virtualClusters:
   - name: dr
+    filters:
+      - acl-authorization
     targetCluster:
-      bootstrapServers: kafka-dr:9092
+      bootstrapServers: kafka-dr-0:9093,kafka-dr-1:9093,kafka-dr-2:9093
+      tls:
+        # Client certificate Kroxylicious presents to the real brokers (mTLS upstream)
+        key:
+          privateKeyFile: /certs/kroxy-dr-upstream.key.pem
+          certificateFile: /certs/kroxy-dr-upstream.cert.pem
+        # CA used to verify the real brokers' server certificates
+        trust:
+          storeFile: /certs/ca.crt
+          storeType: PEM
 
     gateways:
       - name: gateway
-        portIdentifiesNode:
-          bootstrapAddress: 0.0.0.0:9292
-          advertisedBrokerAddressPattern: kroxy-dr
+        sniHostIdentifiesNode:
+          bootstrapAddress: bootstrap.dr.local:9292
+          advertisedBrokerAddressPattern: broker-$(nodeId).dr.local:9292
+        tls:
+          # Server certificate Kroxylicious presents to downstream clients
+          key:
+            privateKeyFile: /certs/kroxy-dr-downstream.key.pem
+            certificateFile: /certs/kroxy-dr-downstream.cert.pem
+          # CA used to verify downstream clients' certificates (mTLS downstream)
+          trust:
+            storeFile: /certs/ca.crt
+            storeType: PEM

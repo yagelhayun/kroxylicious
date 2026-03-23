@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:kroxylicious.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.kroxylicious.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(find /f/GitRepos/kroxylicious -name *.yaml -path */deploy* -o -name *.yaml -path */k8s*)",
+      "WebFetch(domain:artifacthub.io)",
+      "Bash(docker compose:*)",
+      "Bash(docker run:*)"
+    ]
+  }
+}

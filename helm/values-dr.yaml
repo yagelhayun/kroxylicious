@@ -1,0 +1,33 @@
+virtualClusterName: dr
+
+targetCluster:
+  bootstrapServers: "kafka-dr-0:9093,kafka-dr-1:9093,kafka-dr-2:9093"
+  tls:
+    secretName: kroxylicious-dr-upstream-tls
+    keyFile:  tls.key
+    certFile: tls.crt
+    caFile:   ca.crt
+
+gateway:
+  bootstrapHost: bootstrap.dr.example.com
+  port: 9192
+  brokerAddressPattern: "broker-$(nodeId).dr.example.com"
+  tls:
+    secretName: kroxylicious-dr-downstream-tls
+    keyFile:  tls.key
+    certFile: tls.crt
+    caFile:   ca.crt
+
+authorization:
+  enabled: true
+  rules: |
+    from io.kroxylicious.filter.authorization import TopicResource as Topic;
+
+    allow User with name = "CN=kafka-ui,O=Test,C=IL" to DESCRIBE Topic with name like "*";
+    allow User with name = "CN=kafka-ui,O=Test,C=IL" to READ     Topic with name like "*";
+
+    otherwise deny;
+
+service:
+  type: LoadBalancer
+  annotations: {}

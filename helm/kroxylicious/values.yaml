@@ -1,0 +1,91 @@
+replicaCount: 1
+
+image:
+  repository: quay.io/kroxylicious/kroxylicious
+  tag: "0.19.0"
+  pullPolicy: IfNotPresent
+
+# Name exposed to Kafka clients (appears in metadata responses)
+virtualClusterName: my-cluster
+
+# ── Upstream: real Kafka cluster ──────────────────────────────────────────────
+targetCluster:
+  bootstrapServers: "kafka-0:9093,kafka-1:9093,kafka-2:9093"
+  tls:
+    # Name of an existing Secret containing the upstream mTLS material.
+    # The proxy presents this certificate to the Kafka brokers.
+    secretName: kroxylicious-upstream-tls
+    keyFile:  tls.key   # private key PEM
+    certFile: tls.crt   # certificate PEM
+    caFile:   ca.crt    # CA cert used to verify broker certificates
+
+# ── Gateway: how clients connect to this proxy ───────────────────────────────
+gateway:
+  # External hostname for the bootstrap address.
+  # Must resolve to the LoadBalancer IP via DNS.
+  bootstrapHost: bootstrap.example.com
+
+  # Port exposed by the LoadBalancer Service and listened on inside the container.
+  # With sniHostIdentifiesNode all brokers share this single port.
+  port: 9192
+
+  # Per-broker advertised hostname pattern.
+  # $(nodeId) is substituted by Kroxylicious at runtime with the broker's node id.
+  # All resulting hostnames (broker-0.example.com, broker-1.example.com, …)
+  # must also resolve to the same LoadBalancer IP.
+  # A wildcard DNS record  *.example.com → <LB IP>  covers both this and bootstrapHost.
+  brokerAddressPattern: "broker-$(nodeId).example.com"
+
+  tls:
+    # Name of an existing Secret containing the downstream mTLS material.
+    # The proxy presents this certificate to clients.
+    # The certificate must have SANs covering bootstrapHost and all broker hostnames.
+    secretName: kroxylicious-downstream-tls
+    keyFile:  tls.key   # private key PEM
+    certFile: tls.crt   # certificate PEM
+    caFile:   ca.crt    # CA cert used to verify client certificates (mTLS downstream)
+
+# ── Authorization filter (optional) ──────────────────────────────────────────
+authorization:
+  enabled: false
+  # ACL rules evaluated before the request reaches the Kafka broker.
+  # User principal is derived from the TLS client certificate subject.
+  # Rule format:  allow|deny  User with name = "…"  to <OP>  Topic with name …;
+  # File must end with:  otherwise deny;
+  rules: |
+    from io.kroxylicious.filter.authorization import TopicResource as Topic;
+
+    # allow User with name = "CN=my-app,O=Org,C=IL" to READ Topic with name like "events-*";
+
+    otherwise deny;
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  type: LoadBalancer
+  # Cloud/on-prem specific annotations, e.g.:
+  #   service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+  #   metallb.universe.tf/address-pool: default
+  annotations: {}
+  # loadBalancerIP: ""   # uncomment to request a specific IP
+
+# ── Security contexts (recommended for OpenShift) ────────────────────────────
+podSecurityContext:
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+# ── Compute resources ─────────────────────────────────────────────────────────
+resources: {}
+#  requests:
+#    cpu: 250m
+#    memory: 256Mi
+#  limits:
+#    cpu: 1000m
+#    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

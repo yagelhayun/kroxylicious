@@ -1,0 +1,35 @@
+virtualClusterName: primary
+
+targetCluster:
+  bootstrapServers: "kafka-primary-0:9093,kafka-primary-1:9093,kafka-primary-2:9093"
+  tls:
+    secretName: kroxylicious-primary-upstream-tls
+    keyFile:  tls.key
+    certFile: tls.crt
+    caFile:   ca.crt
+
+gateway:
+  # Replace with the actual hostname pointing to your LoadBalancer IP.
+  # A wildcard DNS record  *.primary.example.com → <LB IP>  covers everything.
+  bootstrapHost: bootstrap.primary.example.com
+  port: 9192
+  brokerAddressPattern: "broker-$(nodeId).primary.example.com"
+  tls:
+    secretName: kroxylicious-primary-downstream-tls
+    keyFile:  tls.key
+    certFile: tls.crt
+    caFile:   ca.crt
+
+authorization:
+  enabled: true
+  rules: |
+    from io.kroxylicious.filter.authorization import TopicResource as Topic;
+
+    allow User with name = "CN=kafka-ui,O=Test,C=IL" to DESCRIBE Topic with name like "*";
+    allow User with name = "CN=kafka-ui,O=Test,C=IL" to READ     Topic with name like "*";
+
+    otherwise deny;
+
+service:
+  type: LoadBalancer
+  annotations: {}

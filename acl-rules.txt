@@ -1,0 +1,6 @@
+from io.kroxylicious.filter.authorization import TopicResource as Topic;
+
+allow User with name = "CN=kafka-ui,O=Test,C=IL" to DESCRIBE Topic with name like "*";
+allow User with name = "CN=kafka-ui,O=Test,C=IL" to READ Topic with name like "*";
+
+otherwise deny;
