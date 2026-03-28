@@ -17,10 +17,29 @@ spec:
         # Roll pods when the ConfigMap changes (config or ACL rules)
         checksum/config: {{ include "kroxylicious.config" . | sha256sum }}
     spec:
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      initContainers:
+        - name: ca-bundle-downloader
+          image: "{{ .Values.caBundle.image.repository }}:{{ .Values.caBundle.image.tag }}"
+          imagePullPolicy: {{ .Values.caBundle.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              echo "Downloading CA bundle from {{ .Values.caBundle.url }}..."
+              wget -q \
+                {{- if .Values.caBundle.insecureSkipVerify }}
+                --no-check-certificate \
+                {{- end }}
+                {{- range .Values.caBundle.extraArgs }}
+                {{ . }} \
+                {{- end }}
+                -O {{ include "kroxylicious.caBundlePath" . }} \
+                {{ .Values.caBundle.url | quote }}
+              echo "Download complete ($(wc -c < {{ include "kroxylicious.caBundlePath" . }}) bytes, $(grep -c 'BEGIN CERTIFICATE' {{ include "kroxylicious.caBundlePath" . }}) certificate(s))."
+          volumeMounts:
+            - name: ca-bundle
+              mountPath: {{ .Values.caBundle.certPath | dir }}
       containers:
         - name: kroxylicious
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -49,6 +68,9 @@ spec:
             - name: downstream-certs
               mountPath: /certs/downstream
               readOnly: true
+            - name: ca-bundle
+              mountPath: {{ .Values.caBundle.certPath | dir }}
+              readOnly: true
       volumes:
         - name: config
           configMap:
@@ -59,6 +81,8 @@ spec:
         - name: downstream-certs
           secret:
             secretName: {{ .Values.gateway.tls.secretName }}
+        - name: ca-bundle
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

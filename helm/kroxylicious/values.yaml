@@ -17,7 +17,6 @@ targetCluster:
     secretName: kroxylicious-upstream-tls
     keyFile:  tls.key   # private key PEM
     certFile: tls.crt   # certificate PEM
-    caFile:   ca.crt    # CA cert used to verify broker certificates
 
 # ── Gateway: how clients connect to this proxy ───────────────────────────────
 gateway:
@@ -43,7 +42,6 @@ gateway:
     secretName: kroxylicious-downstream-tls
     keyFile:  tls.key   # private key PEM
     certFile: tls.crt   # certificate PEM
-    caFile:   ca.crt    # CA cert used to verify client certificates (mTLS downstream)
 
 # ── Authorization filter (optional) ──────────────────────────────────────────
 authorization:
@@ -59,6 +57,20 @@ authorization:
 
     otherwise deny;
 
+# ── CA bundle init container ──────────────────────────────────────────────────
+# An init container downloads a CA bundle before Kroxylicious starts and places
+# it at /ca-bundle/ca.crt. The bundle is used as the trust anchor for both
+# upstream (Kafka broker) and downstream (client) TLS verification.
+caBundle:
+  url: ""                     # e.g. https://pki.internal/ca-chain.pem
+  certPath: /ca-bundle/ca.crt # where the init container places the bundle inside the pod
+  insecureSkipVerify: false   # set true if the download server uses a self-signed cert
+  extraArgs: []               # extra wget flags, e.g. ["--header=Authorization: Bearer tok"]
+  image:
+    repository: busybox
+    tag: stable               # includes TLS-capable wget; use alpine if wget fails on HTTPS
+    pullPolicy: Always
+
 # ── Service ───────────────────────────────────────────────────────────────────
 service:
   type: LoadBalancer
@@ -67,15 +79,6 @@ service:
   #   metallb.universe.tf/address-pool: default
   annotations: {}
   # loadBalancerIP: ""   # uncomment to request a specific IP
-
-# ── Security contexts (recommended for OpenShift) ────────────────────────────
-podSecurityContext:
-  runAsNonRoot: true
-
-securityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop: ["ALL"]
 
 # ── Compute resources ─────────────────────────────────────────────────────────
 resources: {}

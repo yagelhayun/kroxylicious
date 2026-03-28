@@ -27,6 +27,11 @@ app.kubernetes.io/name: {{ include "kroxylicious.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
+{{/* Full path to the downloaded CA bundle inside the pod */}}
+{{- define "kroxylicious.caBundlePath" -}}
+{{- .Values.caBundle.certPath -}}
+{{- end }}
+
 {{/*
 Renders the full kroxylicious config.yaml content (unindented).
 Use  include "kroxylicious.config" . | indent 4  in the ConfigMap.
@@ -55,7 +60,7 @@ virtualClusters:
           privateKeyFile: /certs/upstream/{{ .Values.targetCluster.tls.keyFile }}
           certificateFile: /certs/upstream/{{ .Values.targetCluster.tls.certFile }}
         trust:
-          storeFile: /certs/upstream/{{ .Values.targetCluster.tls.caFile }}
+          storeFile: {{ include "kroxylicious.caBundlePath" . }}
           storeType: PEM
     gateways:
       - name: gateway
@@ -67,6 +72,6 @@ virtualClusters:
             privateKeyFile: /certs/downstream/{{ .Values.gateway.tls.keyFile }}
             certificateFile: /certs/downstream/{{ .Values.gateway.tls.certFile }}
           trust:
-            storeFile: /certs/downstream/{{ .Values.gateway.tls.caFile }}
+            storeFile: {{ include "kroxylicious.caBundlePath" . }}
             storeType: PEM
 {{- end }}
