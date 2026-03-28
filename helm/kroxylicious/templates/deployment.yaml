@@ -39,7 +39,7 @@ spec:
               echo "Download complete ($(wc -c < {{ include "kroxylicious.caBundlePath" . }}) bytes, $(grep -c 'BEGIN CERTIFICATE' {{ include "kroxylicious.caBundlePath" . }}) certificate(s))."
           volumeMounts:
             - name: ca-bundle
-              mountPath: {{ .Values.caBundle.certPath | dir }}
+              mountPath: {{ include "kroxylicious.caBundlePath" . | dir }}
       containers:
         - name: kroxylicious
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -69,7 +69,7 @@ spec:
               mountPath: /certs/downstream
               readOnly: true
             - name: ca-bundle
-              mountPath: {{ .Values.caBundle.certPath | dir }}
+              mountPath: {{ include "kroxylicious.caBundlePath" . | dir }}
               readOnly: true
       volumes:
         - name: config
