@@ -71,6 +71,18 @@ caBundle:
     tag: stable               # includes TLS-capable wget; use alpine if wget fails on HTTPS
     pullPolicy: Always
 
+# ── Management Service (ClusterIP, internal only) ────────────────────────────
+# Enable to create a separate ClusterIP Service for the management port.
+# Useful for Prometheus ServiceMonitor scraping — keeps port 9190 off the
+# public LoadBalancer.
+managementService:
+  enabled: false
+  # Annotations for Prometheus Operator auto-discovery, e.g.:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "9190"
+  #   prometheus.io/path: "/metrics"
+  annotations: {}
+
 # ── Service ───────────────────────────────────────────────────────────────────
 service:
   type: LoadBalancer
@@ -79,6 +91,33 @@ service:
   #   metallb.universe.tf/address-pool: default
   annotations: {}
   # loadBalancerIP: ""   # uncomment to request a specific IP
+
+# ── Management API ────────────────────────────────────────────────────────────
+# Kroxylicious exposes an HTTP management server used for health probes and
+# Prometheus metrics (/metrics).  Default port is 9190.
+management:
+  port: 9190
+  bindAddress: "0.0.0.0"
+
+# ── Health probes ─────────────────────────────────────────────────────────────
+# All probes hit GET /livez on the management port.
+# startup probe fires first; liveness/readiness only kick in once it passes.
+probes:
+  startup:
+    enabled: true
+    periodSeconds: 10
+    failureThreshold: 30   # up to 5 min to become healthy before pod is killed
+    timeoutSeconds: 5
+  liveness:
+    enabled: true
+    periodSeconds: 20
+    failureThreshold: 3
+    timeoutSeconds: 5
+  readiness:
+    enabled: true
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 5
 
 # ── Compute resources ─────────────────────────────────────────────────────────
 resources: {}
@@ -89,6 +128,36 @@ resources: {}
 #    cpu: 1000m
 #    memory: 512Mi
 
+# ── Rolling update strategy ───────────────────────────────────────────────────
+# Percentages scale automatically with replicaCount — no need to adjust these
+# when changing the replica count.
+# 25% rounds down for maxUnavailable (conservative) and up for maxSurge, which
+# also handles replicaCount: 1 correctly (0 unavailable, 1 surge).
+rollingUpdate:
+  maxUnavailable: "25%"
+  maxSurge: "25%"
+
+# ── Pod Disruption Budget ─────────────────────────────────────────────────────
+# maxUnavailable: 1 means "never evict more than 1 pod at a time", which stays
+# consistent with the rolling update budget at any replica count.
+# Only meaningful when replicaCount > 1.
+podDisruptionBudget:
+  enabled: false
+  maxUnavailable: 1
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# ── Topology spread constraints ───────────────────────────────────────────────
+# Spreads pods across nodes (and optionally zones) to survive node failures.
+# The labelSelector is injected automatically — no need to specify it here.
+# Remove or set to [] to disable.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway   # soft: won't block scheduling if nodes are full
+  # Also spread across availability zones:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway

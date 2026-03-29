@@ -1,0 +1,21 @@
+{{- if .Values.managementService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kroxylicious.fullname" . }}-management
+  labels:
+    {{- include "kroxylicious.labels" . | nindent 4 }}
+  {{- with .Values.managementService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: management
+      port: {{ .Values.management.port }}
+      targetPort: management
+      protocol: TCP
+  selector:
+    {{- include "kroxylicious.selectorLabels" . | nindent 4 }}
+{{- end }}

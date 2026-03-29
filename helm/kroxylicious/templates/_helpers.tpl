@@ -37,6 +37,10 @@ Renders the full kroxylicious config.yaml content (unindented).
 Use  include "kroxylicious.config" . | indent 4  in the ConfigMap.
 */}}
 {{- define "kroxylicious.config" -}}
+management:
+  bindAddress: {{ .Values.management.bindAddress | quote }}
+  port: {{ .Values.management.port }}
+
 {{- if .Values.authorization.enabled }}
 filterDefinitions:
   - name: acl-authorization
@@ -45,7 +49,6 @@ filterDefinitions:
       authorizer: AclAuthorizerService
       authorizerConfig:
         aclFile: /config/acl-rules.txt
-
 {{- end }}
 virtualClusters:
   - name: {{ .Values.virtualClusterName }}
