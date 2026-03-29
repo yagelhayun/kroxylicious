@@ -315,6 +315,7 @@ services:
     image: quay.io/kroxylicious/kroxylicious:0.19.0
     ports:
       - "9192:9192"
+      - "9190:9190"   # management: http://localhost:9190/livez  http://localhost:9190/metrics
     volumes:
       - ./kroxy-primary.yaml:/config/config.yaml
       - ./acl-rules.txt:/config/acl-rules.txt:ro
@@ -345,6 +346,7 @@ services:
     image: quay.io/kroxylicious/kroxylicious:0.19.0
     ports:
       - "9292:9292"
+      - "9191:9190"   # management: http://localhost:9191/livez  http://localhost:9191/metrics
     volumes:
       - ./kroxy-dr.yaml:/config/config.yaml
       - ./acl-rules.txt:/config/acl-rules.txt:ro

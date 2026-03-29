@@ -40,6 +40,8 @@ Use  include "kroxylicious.config" . | indent 4  in the ConfigMap.
 management:
   bindAddress: {{ .Values.management.bindAddress | quote }}
   port: {{ .Values.management.port }}
+  endpoints:
+    prometheus: {}
 
 {{- if .Values.authorization.enabled }}
 filterDefinitions:
